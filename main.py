@@ -179,5 +179,7 @@ else:
                 "This image most likely belongs to {} with a {:.2f}% confidence."
                 .format(class_names[np.argmax(score)], 100 * np.max(score))
             )
+        except FileNotFoundError:
+            pass
         except KeyboardInterrupt:
             exit()
