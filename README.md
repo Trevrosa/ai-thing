@@ -1,5 +1,3 @@
-# ai-thing
+# ai thing
 
-prerequisites:
-pillow
-tensorflow
+prerequisites are pillow and tensorflow
