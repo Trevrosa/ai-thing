@@ -1,4 +1,5 @@
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
 
 from os.path import exists
@@ -14,7 +15,6 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 from tensorflow.python.ops.numpy_ops import np_config
-
 
 np_config.enable_numpy_behavior()
 
@@ -88,7 +88,7 @@ if train:
 
 
     def before_exit():
-        save = True if input("would you like to save your trained model? (y or n): ")\
+        save = True if input("would you like to save your trained model? (y or n): ") \
                            .lower() == "y" else False
         if save:
             if exists(old_model) and exists(latest_model):
@@ -104,7 +104,7 @@ if train:
 
 
     if exists(latest_model):
-        load = True if input("would you like to load your latest saved model to continue training? (y or n): ")\
+        load = True if input("would you like to load your latest saved model to continue training? (y or n): ") \
                            .lower() == "y" else False
         if load:
             print("ok, loading model..", end="")
@@ -160,18 +160,24 @@ else:
         print("no model found. please train the model first")
         exit()
 
-    img = tf.keras.utils.load_img(
-        input("input image path: "), target_size=(img_height, img_width)
-    )
+    running = True
 
-    print("\n", end="")
-    img_array = tf.keras.utils.img_to_array(img)
-    img_array = tf.expand_dims(img_array, 0)  # Create a batch
+    while running:
+        try:
+            img = tf.keras.utils.load_img(
+                input("\ninput image path: "), target_size=(img_height, img_width)
+            )
 
-    predictions = model.predict(img_array)
-    score = tf.nn.softmax(predictions[0])
+            print("\n", end="")
+            img_array = tf.keras.utils.img_to_array(img)
+            img_array = tf.expand_dims(img_array, 0)  # Create a batch
 
-    print(
-        "This image most likely belongs to {} with a {:.2f}% confidence."
-        .format(class_names[np.argmax(score)], 100 * np.max(score))
-    )
+            predictions = model.predict(img_array)
+            score = tf.nn.softmax(predictions[0])
+
+            print(
+                "This image most likely belongs to {} with a {:.2f}% confidence."
+                .format(class_names[np.argmax(score)], 100 * np.max(score))
+            )
+        except KeyboardInterrupt:
+            exit()
