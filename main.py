@@ -22,7 +22,9 @@ from tensorflow.keras.models import Sequential
 from tensorflow.python.ops.numpy_ops import np_config
 
 np_config.enable_numpy_behavior()
+
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
+logging.getLogger("absl").disabled = True
 
 print(f"tensorflow version is {tf.__version__}, devices detected: {tf.config.list_physical_devices()}\n")
 
@@ -172,9 +174,9 @@ if train:
         load = True if input(
             "would you like to load your latest saved model to continue training? (y or n): ").lower() == "y" else False
         if load:
-            print("loading model..", end="")
+            print("\nloading model..", end="")
             model = tf.keras.models.load_model(latest_model, compile=False)
-            print("done")
+            print("done\n")
 
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -199,6 +201,7 @@ if train:
             epochs=1
         )
 
+    print("\n", end="")
     before_exit()
 else:
     model = None
