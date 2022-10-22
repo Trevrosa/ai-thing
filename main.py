@@ -89,7 +89,6 @@ data_dir = pathlib.Path("dataset")
 clean = True if input("would you like to clean your dataset? (y or n): ").lower() == "y" else False
 print("\n", end="")
 
-
 if clean:
     files = 0
     total = sum([len(files) for r, d, files in os.walk("dataset")])
@@ -100,10 +99,12 @@ if clean:
 
             fp = os.path.join(dirpath, f)
             path = pathlib.Path(fp)
-            new_path = os.path.join(path.parent if "dataset" not in path.parent.name else path.name)
+            new_path = os.path.join("invalid_files", path.name if "dataset" in path.parent.name else
+                                    os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
 
             if what(fp) is None:
-                move(fp, f"invalid_files/{new_path}")
+                pathlib.Path(new_path.replace(pathlib.Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
+                move(fp, new_path)
 
             print(f"\rcleaning dataset.. ({files}/{total})", end="")
     print("\rcleaning dataset..done")
