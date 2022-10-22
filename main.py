@@ -4,7 +4,7 @@ import sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
 
 from os.path import exists
-from os import rename, stat
+from os import rename, stat, remove
 from shutil import rmtree, make_archive, move
 from statistics import mean
 from imghdr import what
@@ -65,6 +65,10 @@ def before_exit():
         rename(latest_model, old_model)
 
     tf.keras.models.save_model(model, latest_model)
+
+    if exists(f"{latest_model}.zip"):
+        remove(f"{latest_model}.zip")
+
     make_archive(latest_model, 'zip', latest_model)
 
     print(f"\nok, saved to {latest_model} ({round(get_size(latest_model) / 1000000, 1)} MBs).")
@@ -109,7 +113,7 @@ if clean:
                 move(fp, new_path)
 
             print(f"\rcleaning dataset.. ({files}/{total})", end="")
-    print("\rcleaning dataset..done")
+    print(f"\rcleaning dataset..done{' ' * (len(str(total)) + 6)}")
 
 print("loading dataset..", end="")
 
@@ -194,7 +198,7 @@ if train:
     for i in range(EPOCHS):
         print("", end="\n\n" if i == 0 else "\n")
 
-        print("Epoch 1: ")
+        print(f"Epoch {i + 1}: ")
         history = model.fit(
             train_ds,
             validation_data=val_ds,
