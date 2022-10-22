@@ -31,8 +31,8 @@ print(f"tensorflow version is {tf.__version__}, devices detected: {tf.config.lis
 train = True if input("would you like to train the model or predict an image? (1 or 2): ").lower() == "1" else False
 
 print("\n", end="")
-old_model = "models/old_model"
-latest_model = "models/latest_model"
+old_model = pathlib.Path("models/old_model")
+latest_model = pathlib.Path("models/latest_model")
 
 batch_size = 32
 img_height = 180
@@ -58,20 +58,20 @@ def before_exit():
     if not save:
         exit()
 
-    if exists(old_model) and exists(latest_model):
+    if old_model.exists() and latest_model.exists():
         rmtree(old_model)
-        rename(latest_model, old_model)
+        latest_model.rename(old_model)
     elif exists(latest_model):
-        rename(latest_model, old_model)
+        latest_model.rename(old_model)
 
     tf.keras.models.save_model(model, latest_model)
 
     if exists(f"{latest_model}.zip"):
         remove(f"{latest_model}.zip")
 
-    make_archive(latest_model, 'zip', latest_model)
+    make_archive(str(latest_model), 'zip', latest_model)
 
-    print(f"\nok, saved to {latest_model} ({round(get_size(latest_model) / 1000000, 1)} MBs).")
+    print(f"\nok, saved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
 
 
 @contextlib.contextmanager
