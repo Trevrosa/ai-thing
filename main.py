@@ -65,6 +65,7 @@ def before_exit():
         latest_model.rename(old_model)
 
     tf.keras.models.save_model(model, latest_model)
+    model.save_weights("weights.h5")
 
     if exists(f"{latest_model}.zip"):
         remove(f"{latest_model}.zip")
@@ -126,7 +127,8 @@ with suppress_stdout():
         seed=123,
         image_size=(img_height, img_width),
         batch_size=batch_size)
-    print(f"\rloading dataset.. (1/2)", end="")
+print(f"\rloading dataset.. (1/2)", end="")
+with suppress_stdout():
     val_ds = tf.keras.utils.image_dataset_from_directory(
         data_dir,
         validation_split=0.2,
@@ -134,10 +136,10 @@ with suppress_stdout():
         seed=123,
         image_size=(img_height, img_width),
         batch_size=batch_size)
-    print("\rloading dataset..done")
+print(f"\rloading dataset..done {' ' * len('(1/2)')}\n")
+
 
 class_names = train_ds.class_names
-print("done\n")
 
 print(f"found {len(class_names)} labels from dataset.\n")
 
@@ -241,3 +243,4 @@ else:
             pass
         except KeyboardInterrupt:
             exit()
+    
