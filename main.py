@@ -52,6 +52,20 @@ def get_size(start_path='.'):
     return total_size
 
 
+class_name_file = os.path.join(str(latest_model), "class_names.txt")
+
+
+def save_class_names():
+    if exists(latest_model):
+        with open(class_name_file, "w") as classes:
+            classes.write(', '.join(class_names)) 
+
+
+def save_weights():
+    if exists(latest_model) and model is not None:
+        model.save_weights("weights.h5")
+
+
 def before_exit():
     save = True if input("would you like to save your trained model? (y or n): ") \
                        .lower() == "y" else False
@@ -65,7 +79,9 @@ def before_exit():
         latest_model.rename(old_model)
 
     tf.keras.models.save_model(model, latest_model)
-    model.save_weights("weights.h5")
+    
+    save_class_names()
+    save_weights()
 
     if exists(f"{latest_model}.zip"):
         remove(f"{latest_model}.zip")
@@ -86,63 +102,70 @@ def suppress_stdout():
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
 
+if train or not exists(class_name_file):
+    if not exists("dataset"):
+        print("dataset not found. (folder name should be 'dataset' and in this directory)")
+        exit()
 
-if not exists("dataset"):
-    print("dataset not found. (folder name should be 'dataset' and in this directory)")
+    data_dir = pathlib.Path("dataset")
+
+    clean = True if input("would you like to clean your dataset? (y or n): ").lower() == "y" else False
+    print("\n", end="")
+
+    if clean:
+        files = 0
+        total = sum([len(files) for r, d, files in os.walk("dataset")])
+
+        for dirpath, dirnames, filenames in os.walk("dataset"):
+            for f in filenames:
+                files += 1
+
+                fp = os.path.join(dirpath, f)
+                path = pathlib.Path(fp)
+                new_path = os.path.join("invalid_files", path.name if "dataset" in path.parent.name else
+                                        os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
+
+                if what(fp) is None:
+                    pathlib.Path(new_path.replace(pathlib.Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
+                    move(fp, new_path)
+
+                print(f"\rcleaning dataset.. ({files}/{total})", end="")
+        print(f"\rcleaning dataset..done{' ' * (len(str(total)) + 6)}")
+
+    print("loading dataset..", end="")
+
+    with suppress_stdout():
+        # noinspection PyUnboundLocalVariable
+        train_ds = tf.keras.utils.image_dataset_from_directory(
+            data_dir,
+            validation_split=0.2,
+            subset="training",
+            seed=123,
+            image_size=(img_height, img_width),
+            batch_size=batch_size)
+    print(f"\rloading dataset.. (1/2)", end="")
+    with suppress_stdout():
+        val_ds = tf.keras.utils.image_dataset_from_directory(
+            data_dir,
+            validation_split=0.2,
+            subset="validation",
+            seed=123,
+            image_size=(img_height, img_width),
+            batch_size=batch_size)
+    print(f"\rloading dataset..done {' ' * len('(1/2)')}\n")
+
+    class_names = train_ds.class_names
+
+    print(f"found {len(class_names)} labels from dataset.\n")
+elif exists(class_name_file):
+    with open(class_name_file, "r") as classes:
+        class_names = [x.strip() for x in classes.read().split(",")]
+
+        print(f"found {len(class_names)} labels from model.\n")
+else:
+    print("\ndataset and class names were not found.")
     exit()
-
-data_dir = pathlib.Path("dataset")
-
-clean = True if input("would you like to clean your dataset? (y or n): ").lower() == "y" else False
-print("\n", end="")
-
-if clean:
-    files = 0
-    total = sum([len(files) for r, d, files in os.walk("dataset")])
-
-    for dirpath, dirnames, filenames in os.walk("dataset"):
-        for f in filenames:
-            files += 1
-
-            fp = os.path.join(dirpath, f)
-            path = pathlib.Path(fp)
-            new_path = os.path.join("invalid_files", path.name if "dataset" in path.parent.name else
-                                    os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
-
-            if what(fp) is None:
-                pathlib.Path(new_path.replace(pathlib.Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
-                move(fp, new_path)
-
-            print(f"\rcleaning dataset.. ({files}/{total})", end="")
-    print(f"\rcleaning dataset..done{' ' * (len(str(total)) + 6)}")
-
-print("loading dataset..", end="")
-
-with suppress_stdout():
-    # noinspection PyUnboundLocalVariable
-    train_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
-        validation_split=0.2,
-        subset="training",
-        seed=123,
-        image_size=(img_height, img_width),
-        batch_size=batch_size)
-print(f"\rloading dataset.. (1/2)", end="")
-with suppress_stdout():
-    val_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
-        validation_split=0.2,
-        subset="validation",
-        seed=123,
-        image_size=(img_height, img_width),
-        batch_size=batch_size)
-print(f"\rloading dataset..done {' ' * len('(1/2)')}\n")
-
-
-class_names = train_ds.class_names
-
-print(f"found {len(class_names)} labels from dataset.\n")
-
+    
 if train:
     normalization_layer = layers.Rescaling(1. / 255)
     normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
@@ -239,8 +262,9 @@ else:
                 .format(class_names[np.argmax(score)], 100 * np.max(score))
             )
         except (FileNotFoundError, OSError):
-            print("file not found\n")
+            print("\nfile not found")
             pass
         except KeyboardInterrupt:
+            save_class_names()
             exit()
     
