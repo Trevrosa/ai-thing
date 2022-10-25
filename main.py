@@ -112,7 +112,7 @@ def before_exit():
             continue
         break
 
-    print("ok, ", end="")
+    print("\nok, ", end="")
 
     if old_model.exists() and latest_model.exists():
         rmtree(old_model)
@@ -130,7 +130,7 @@ def before_exit():
 
     make_archive(str(latest_model), 'zip', latest_model)
 
-    print(f"\nsaved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
+    print(f"saved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
 
 
 @contextlib.contextmanager
