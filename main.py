@@ -14,6 +14,7 @@ import pathlib
 import PIL
 import contextlib
 import logging
+import json
 
 import tensorflow as tf
 from tensorflow import keras
@@ -53,6 +54,7 @@ def get_size(start_path='.'):
 
 
 class_name_file = os.path.join(str(latest_model), "class_names.txt")
+weights_file = os.path.join("models", "latest_weights.json")
 
 
 def save_class_names():
@@ -62,9 +64,20 @@ def save_class_names():
 
 
 def save_weights():
-    if exists(latest_model) and model is not None:
-        model.save_weights("weights.h5")
+    if exists(latest_model):
+        weights = model.get_weights()
+        weights_list = []
 
+        print("\n\nwait..", end="")
+
+        for we in weights:
+            if type(we) is not list:
+                weights_list.append(we.tolist())
+                continue
+            weights_list.append(we)
+
+        with open(weights_file, "w") as w:
+            w.write(json.dumps(weights_list, indent=2))
 
 def before_exit():
     save = True if input("would you like to save your trained model? (y or n): ") \
@@ -185,7 +198,7 @@ if train:
     )
 
     model = Sequential([
-        data_augmentation,
+        data_augmentation,  
         layers.Rescaling(1. / 255),
         layers.Conv2D(16, 3, padding='same', activation='relu'),
         layers.MaxPooling2D(),
@@ -213,7 +226,7 @@ if train:
 
     try:
         EPOCHS = int(input("how many epochs do you want to train for? "))
-        if EPOCHS < 0:
+        if EPOCHS < 1:
             print("cannot train for 0 epochs, falling back to 5 epochs.\n")
             EPOCHS = 5
     except ValueError:
@@ -266,5 +279,7 @@ else:
             pass
         except KeyboardInterrupt:
             save_class_names()
+            save_weights()
+            print("done, closing")
             exit()
     
