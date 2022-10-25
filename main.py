@@ -1,5 +1,5 @@
 from packaging import version
-local_ver = "0.2.1"
+local_ver = "0.2.2"
 
 import os
 import sys
