@@ -1,3 +1,6 @@
+from packaging import version
+local_ver = "0.2.1"
+
 import os
 import sys
 
@@ -14,6 +17,8 @@ import pathlib
 import PIL
 import contextlib
 import logging
+import json
+import requests
 
 import tensorflow as tf
 from tensorflow import keras
@@ -25,6 +30,26 @@ np_config.enable_numpy_behavior()
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 logging.getLogger("absl").disabled = True
+
+local_ver = version.parse(local_ver)
+remote_ver: version
+
+try:
+    remote = requests.get("https://github.com/Trevrosa/ai-thing/raw/main/main.py").text.splitlines()[1]
+    remote = [x.strip() for x in remote.split("=")][-1].replace("\"", "")
+
+    remote_ver = version.parse(remote)
+
+    if type(remote_ver) is not version.Version:
+        print("remote version could not be fetched.\n")
+        remote_ver = version.parse("0.0.0")
+except (Exception,):
+    print("remote version could not be fetched.\n")
+    remote_ver = version.parse("0.0.0")
+
+if remote_ver > local_ver:
+    print(f"your version of this code is out of date (v{remote_ver} (remote) vs v{local_ver} (local)).\n"
+          f"go to https://github.com/Trevrosa/ai-thing to update.\n")
 
 print(f"tensorflow version is {tf.__version__}, devices detected: {tf.config.list_physical_devices()}\n")
 
@@ -53,24 +78,41 @@ def get_size(start_path='.'):
 
 
 class_name_file = os.path.join(str(latest_model), "class_names.txt")
+weights_file = os.path.join("models", "latest_weights.json")
 
 
 def save_class_names():
     if exists(latest_model):
-        with open(class_name_file, "w") as classes:
-            classes.write(', '.join(class_names)) 
+        with open(class_name_file, "w") as class_file:
+            class_file.write(', '.join(class_names))
 
 
 def save_weights():
-    if exists(latest_model) and model is not None:
-        model.save_weights("weights.h5")
+    if exists(latest_model):
+        weights = model.get_weights()
+        weights_list = []
+
+        for we in weights:
+            if type(we) is not list:
+                weights_list.append(we.tolist())
+                continue
+            weights_list.append(we)
+
+        with open(weights_file, "w") as w:
+            w.write(json.dumps(weights_list, indent=2))
 
 
 def before_exit():
-    save = True if input("would you like to save your trained model? (y or n): ") \
-                       .lower() == "y" else False
-    if not save:
-        exit()
+    while True:
+        save = True if input("would you like to save your trained model? (y or n): ").lower() == "y" else False
+        if not save:
+            confirm = True if input("are you sure? (y or n): ").lower() == "y" else False
+            if confirm:
+                exit()
+            continue
+        break
+
+    print("ok, ", end="")
 
     if old_model.exists() and latest_model.exists():
         rmtree(old_model)
@@ -79,7 +121,7 @@ def before_exit():
         latest_model.rename(old_model)
 
     tf.keras.models.save_model(model, latest_model)
-    
+
     save_class_names()
     save_weights()
 
@@ -88,7 +130,7 @@ def before_exit():
 
     make_archive(str(latest_model), 'zip', latest_model)
 
-    print(f"\nok, saved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
+    print(f"\nsaved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
 
 
 @contextlib.contextmanager
@@ -101,6 +143,7 @@ def suppress_stdout():
         finally:
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
+
 
 if train or not exists(class_name_file):
     if not exists("dataset"):
@@ -165,7 +208,7 @@ elif exists(class_name_file):
 else:
     print("\ndataset and class names were not found.")
     exit()
-    
+
 if train:
     normalization_layer = layers.Rescaling(1. / 255)
     normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
@@ -179,8 +222,8 @@ if train:
                               input_shape=(img_height,
                                            img_width,
                                            3)),
-            layers.RandomRotation(uniform(0.1, 0.4)),
-            layers.RandomZoom(uniform(0.1, 0.4)),
+            layers.RandomRotation(uniform(0.2, 0.6)),
+            layers.RandomZoom(uniform(0.2, 0.6)),
         ]
     )
 
@@ -213,7 +256,7 @@ if train:
 
     try:
         EPOCHS = int(input("how many epochs do you want to train for? "))
-        if EPOCHS < 0:
+        if EPOCHS < 1:
             print("cannot train for 0 epochs, falling back to 5 epochs.\n")
             EPOCHS = 5
     except ValueError:
@@ -224,7 +267,7 @@ if train:
         print("", end="\n\n" if i == 0 else "\n")
 
         print(f"Epoch {i + 1}: ")
-        history = model.fit(
+        model.fit(
             train_ds,
             validation_data=val_ds,
             epochs=1
@@ -267,4 +310,3 @@ else:
         except KeyboardInterrupt:
             save_class_names()
             exit()
-    
