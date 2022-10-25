@@ -1,4 +1,5 @@
-# TODO: add version checking
+from packaging import version
+local_ver = "0.2.1"
 
 import os
 import sys
@@ -17,6 +18,7 @@ import PIL
 import contextlib
 import logging
 import json
+import requests
 
 import tensorflow as tf
 from tensorflow import keras
@@ -28,6 +30,26 @@ np_config.enable_numpy_behavior()
 
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 logging.getLogger("absl").disabled = True
+
+local_ver = version.parse(local_ver)
+remote_ver: version
+
+try:
+    remote = requests.get("https://github.com/Trevrosa/ai-thing/raw/main/main.py").text.splitlines()[1]
+    remote = [x.strip() for x in remote.split("=")][-1].replace("\"", "")
+
+    remote_ver = version.parse(remote)
+
+    if type(remote_ver) is not version.Version:
+        print("remote version could not be fetched.\n")
+        remote_ver = version.parse("0.0.0")
+except (Exception,):
+    print("remote version could not be fetched.\n")
+    remote_ver = version.parse("0.0.0")
+
+if remote_ver > local_ver:
+    print(f"your version of this code is out of date (v{remote_ver} (remote) vs v{local_ver} (local)).\n"
+          f"go to https://github.com/Trevrosa/ai-thing to update.\n")
 
 print(f"tensorflow version is {tf.__version__}, devices detected: {tf.config.list_physical_devices()}\n")
 
