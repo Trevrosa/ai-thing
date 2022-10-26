@@ -1,24 +1,24 @@
 from packaging import version
-local_ver = "0.2.2"
+local_ver = "0.2.3"
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 import sys
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
-
-from os.path import exists
-from os import rename, stat, remove
-from shutil import rmtree, make_archive, move
-from statistics import mean
-from imghdr import what
-from random import uniform
 import numpy as np
-import pathlib
-import PIL
+import cv2 as cv
 import contextlib
 import logging
 import json
 import requests
+
+from pathlib import Path
+from PIL import Image
+from os import remove
+from os.path import exists
+from shutil import rmtree, make_archive, move
+from imghdr import what
+from random import uniform
 
 import tensorflow as tf
 from tensorflow import keras
@@ -56,8 +56,9 @@ print(f"tensorflow version is {tf.__version__}, devices detected: {tf.config.lis
 train = True if input("would you like to train the model or predict an image? (1 or 2): ").lower() == "1" else False
 
 print("\n", end="")
-old_model = pathlib.Path("models/old_model")
-latest_model = pathlib.Path("models/latest_model")
+
+old_model = Path("models/old_model")
+latest_model = Path("models/latest_model")
 
 batch_size = 32
 img_height = 180
@@ -70,25 +71,24 @@ def get_size(start_path='.'):
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
-            # skip if it is a symbolic link
             if not os.path.islink(fp):
                 total_size += os.path.getsize(fp)
 
     return total_size
 
 
-class_name_file = os.path.join(str(latest_model), "class_names.txt")
-weights_file = os.path.join("models", "latest_weights.json")
+class_name_file = Path(latest_model, "class_names.txt")
+weights_file = Path("models", "latest_weights.json")
 
 
 def save_class_names():
-    if exists(latest_model):
-        with open(class_name_file, "w") as class_file:
+    if latest_model.exists():
+        with open(str(class_name_file), "w") as class_file:
             class_file.write(', '.join(class_names))
 
 
 def save_weights():
-    if exists(latest_model):
+    if latest_model.exists():
         weights = model.get_weights()
         weights_list = []
 
@@ -98,7 +98,7 @@ def save_weights():
                 continue
             weights_list.append(we)
 
-        with open(weights_file, "w") as w:
+        with open(str(weights_file), "w") as w:
             w.write(json.dumps(weights_list, indent=2))
 
 
@@ -117,7 +117,7 @@ def before_exit():
     if old_model.exists() and latest_model.exists():
         rmtree(old_model)
         latest_model.rename(old_model)
-    elif exists(latest_model):
+    elif latest_model.exists():
         latest_model.rename(old_model)
 
     tf.keras.models.save_model(model, latest_model)
@@ -150,26 +150,27 @@ if train or not exists(class_name_file):
         print("dataset not found. (folder name should be 'dataset' and in this directory)")
         exit()
 
-    data_dir = pathlib.Path("dataset")
+    data_dir = Path("dataset")
 
     clean = True if input("would you like to clean your dataset? (y or n): ").lower() == "y" else False
     print("\n", end="")
 
     if clean:
         files = 0
-        total = sum([len(files) for r, d, files in os.walk("dataset")])
+        total = sum([len(files) for files in os.walk("dataset")[2]])
 
         for dirpath, dirnames, filenames in os.walk("dataset"):
             for f in filenames:
                 files += 1
 
                 fp = os.path.join(dirpath, f)
-                path = pathlib.Path(fp)
+
+                path = Path(fp)
                 new_path = os.path.join("invalid_files", path.name if "dataset" in path.parent.name else
                                         os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
 
                 if what(fp) is None:
-                    pathlib.Path(new_path.replace(pathlib.Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
+                    Path(new_path.replace(Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
                     move(fp, new_path)
 
                 print(f"\rcleaning dataset.. ({files}/{total})", end="")
@@ -178,7 +179,6 @@ if train or not exists(class_name_file):
     print("loading dataset..", end="")
 
     with suppress_stdout():
-        # noinspection PyUnboundLocalVariable
         train_ds = tf.keras.utils.image_dataset_from_directory(
             data_dir,
             validation_split=0.2,
@@ -289,21 +289,62 @@ else:
 
     while running:
         try:
-            img = tf.keras.utils.load_img(
-                input("\ninput image path: "), target_size=(img_height, img_width)
-            )
+            input_file = input("\ninput image path (or type cam to get webcam image): ")
 
-            print("\n", end="")
-            img_array = tf.keras.utils.img_to_array(img)
-            img_array = tf.expand_dims(img_array, 0)  # Create a batch
+            if input_file.lower() == "cam":
+                cam = cv.VideoCapture()
+                cam.open(0)
 
-            predictions = model.predict(img_array)
-            score = tf.nn.softmax(predictions[0])
+                cam.grab()
+                img = cam.retrieve()[1]
+                cam.release()
+                
+                img_show = img
 
-            print(
-                "This image most likely belongs to {} with a {:.2f}% confidence."
-                .format(class_names[np.argmax(score)], 100 * np.max(score))
-            )
+                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+                img = cv.resize(img, (img_width, img_height))
+                img = Image.fromarray(img)
+                
+                print("\n", end="")
+                img_array = tf.keras.utils.img_to_array(img)
+                img_array = tf.expand_dims(img_array, 0)
+
+                predictions = model.predict(img_array)
+                score = tf.nn.softmax(predictions[0])
+
+                print(
+                    "This image most likely belongs to {} with a {:.2f}% confidence."
+                    .format(class_names[np.argmax(score)], 100 * np.max(score))
+                )
+
+                taken_path = Path("taken", class_names[np.argmax(score)])
+                taken_path.mkdir(exist_ok=True, parents=True)
+
+                old_files = files = [f for f in os.listdir(str(taken_path)) if Path(taken_path, f).is_file()]
+
+                taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
+                
+                cv.imwrite(str(taken_file), img_show)
+                cv.imshow("taken image", img_show)
+                
+                cv.waitKey(0)
+                cv.destroyAllWindows() 
+            else:
+                img = tf.keras.utils.load_img(
+                    input_file, target_size=(img_height, img_width)
+                )
+
+                print("\n", end="")
+                img_array = tf.keras.utils.img_to_array(img)
+                img_array = tf.expand_dims(img_array, 0)  # Create a batch
+
+                predictions = model.predict(img_array)
+                score = tf.nn.softmax(predictions[0])
+
+                print(
+                    "This image most likely belongs to {} with a {:.2f}% confidence."
+                    .format(class_names[np.argmax(score)], 100 * np.max(score))
+                )
         except (FileNotFoundError, OSError):
             print("\nfile not found")
             pass
