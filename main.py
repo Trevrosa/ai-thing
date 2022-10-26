@@ -1,24 +1,20 @@
 from packaging import version
-local_ver = "0.2.2"
+local_ver = "0.2.1"
 
 import os
 import sys
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
-
-from os.path import exists
-from os import rename, stat, remove
-from shutil import rmtree, make_archive, move
-from statistics import mean
-from imghdr import what
-from random import uniform
 import numpy as np
 import pathlib
-import PIL
 import contextlib
 import logging
 import json
 import requests
+
+from os.path import exists
+from os import remove
+from shutil import rmtree, make_archive, move
+from imghdr import what
+from random import uniform
 
 import tensorflow as tf
 from tensorflow import keras
