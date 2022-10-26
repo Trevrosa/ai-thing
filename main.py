@@ -170,7 +170,7 @@ if train or not exists(class_name_file):
                                         os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
 
                 if what(fp) is None:
-                    Path(new_path.replace(pathlib.Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
+                    Path(new_path.replace(Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
                     move(fp, new_path)
 
                 print(f"\rcleaning dataset.. ({files}/{total})", end="")
