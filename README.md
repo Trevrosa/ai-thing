@@ -1,5 +1,5 @@
 # prerequisites 
-pillow, tensorflow, numpy, packaging, and opencv
+pillow, tensorflow, numpy, packaging, and opencv  
 you can install them with `python -m pip install pillow tensorflow numpy packaging opencv-python`
 
 # training with gpu
