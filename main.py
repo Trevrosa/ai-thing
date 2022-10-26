@@ -1,20 +1,24 @@
 from packaging import version
-local_ver = "0.2.1"
+local_ver = "0.2.3"
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 import sys
 import numpy as np
+import cv2 as cv
 import pathlib
 import contextlib
 import logging
 import json
 import requests
 
+from PIL import Image
 from os.path import exists
 from os import remove
 from shutil import rmtree, make_archive, move
 from imghdr import what
-from random import uniform
+from random import uniform, randint
 
 import tensorflow as tf
 from tensorflow import keras
@@ -153,7 +157,7 @@ if train or not exists(class_name_file):
 
     if clean:
         files = 0
-        total = sum([len(files) for r, d, files in os.walk("dataset")])
+        total = sum([len(files) for _, _, files in os.walk("dataset")])
 
         for dirpath, dirnames, filenames in os.walk("dataset"):
             for f in filenames:
@@ -285,21 +289,57 @@ else:
 
     while running:
         try:
-            img = tf.keras.utils.load_img(
-                input("\ninput image path: "), target_size=(img_height, img_width)
-            )
+            input_file = input("\ninput image path (or type cam to get webcam image): ")
 
-            print("\n", end="")
-            img_array = tf.keras.utils.img_to_array(img)
-            img_array = tf.expand_dims(img_array, 0)  # Create a batch
+            if input_file.lower() == "cam":
+                cam = cv.VideoCapture()
+                cam.open(0)
 
-            predictions = model.predict(img_array)
-            score = tf.nn.softmax(predictions[0])
+                cam.grab()
+                _, img = cam.retrieve()
+                cam.release()
+                
+                img_show = img
 
-            print(
-                "This image most likely belongs to {} with a {:.2f}% confidence."
-                .format(class_names[np.argmax(score)], 100 * np.max(score))
-            )
+                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+                img = cv.resize(img, (img_width, img_height))
+                img = Image.fromarray(img)
+                
+                print("\n", end="")
+                img_array = tf.keras.utils.img_to_array(img)
+                img_array = tf.expand_dims(img_array, 0)
+
+                predictions = model.predict(img_array)
+                score = tf.nn.softmax(predictions[0])
+
+                print(
+                    "This image most likely belongs to {} with a {:.2f}% confidence."
+                    .format(class_names[np.argmax(score)], 100 * np.max(score))
+                )
+
+                pathlib.Path("taken").mkdir(exist_ok=True)
+                
+                cv.imwrite(f"taken/{class_names[np.argmax(score)]}_{randint(1, 100000000)}.jpg", img_show)
+                cv.imshow("image", img_show)
+                
+                cv.waitKey(0)
+                cv.destroyAllWindows() 
+            else:
+                img = tf.keras.utils.load_img(
+                    input_file, target_size=(img_height, img_width)
+                )
+
+                print("\n", end="")
+                img_array = tf.keras.utils.img_to_array(img)
+                img_array = tf.expand_dims(img_array, 0)  # Create a batch
+
+                predictions = model.predict(img_array)
+                score = tf.nn.softmax(predictions[0])
+
+                print(
+                    "This image most likely belongs to {} with a {:.2f}% confidence."
+                    .format(class_names[np.argmax(score)], 100 * np.max(score))
+                )
         except (FileNotFoundError, OSError):
             print("\nfile not found")
             pass
