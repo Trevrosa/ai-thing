@@ -68,11 +68,11 @@ img_width = 180
 # noinspection PyShadowingNames
 def get_size(start_path='.'):
     total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
+    for dirpath, _, filenames in os.walk(start_path):
         for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
+            fp = Path(dirpath, f)
+            if not fp.is_symlink():
+                total_size += os.path.getsize(str(fp))
 
     return total_size
 
@@ -112,7 +112,7 @@ def before_exit():
             continue
         break
 
-    print("\nok, ", end="")
+    print("\nok, wait..", end="")
 
     if old_model.exists() and latest_model.exists():
         rmtree(old_model)
@@ -130,7 +130,7 @@ def before_exit():
 
     make_archive(str(latest_model), 'zip', latest_model)
 
-    print(f"saved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
+    print(f"\rok, saved to {latest_model} ({round(get_size(str(latest_model)) / 1000000, 1)} MBs).")
 
 
 @contextlib.contextmanager
@@ -157,7 +157,7 @@ if train or not exists(class_name_file):
 
     if clean:
         files = 0
-        total = sum([len(files) for files in os.walk("dataset")[2]])
+        total = sum([len(files) for _, _, files in os.walk("dataset")])
 
         for dirpath, dirnames, filenames in os.walk("dataset"):
             for f in filenames:
