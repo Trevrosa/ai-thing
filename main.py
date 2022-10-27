@@ -1,5 +1,5 @@
 from packaging import version
-local_ver = "0.2.3"
+local_ver = "0.2.4"
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
