@@ -306,6 +306,8 @@ else:
                     it += 1
                     img_show = img
 
+                    img_result = ""
+
                     if it % 15 == 0:
                         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
                         img = cv.resize(img, (img_width, img_height))
@@ -318,10 +320,10 @@ else:
                         predictions = model.predict(img_array)
                         score = tf.nn.softmax(predictions[0])
 
-                        print(
-                            "This image most likely belongs to {} with a {:.2f}% confidence."
-                            .format(class_names[np.argmax(score)], 100 * np.max(score))
-                        )
+                        result = "This image most likely belongs to {} with a {:.2f}% confidence.".format(class_names[np.argmax(score)], 100 * np.max(score))
+                        img_result = f"{class_names[np.argmax(score)]}: {round(100 * np.max(score), 2)}% confidence"
+
+                        print(result)
 
                         taken_path = Path("taken", class_names[np.argmax(score)])
                         taken_path.mkdir(exist_ok=True, parents=True)
@@ -330,10 +332,10 @@ else:
                         taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
 
                         cv.imwrite(str(taken_file), img_show)
-
-                    cv.imshow("taken image", img_show)
-
-                    if cv.waitKey(1) == ord('q'):
+                    
+                    cv.imshow("taken image", cv.putText(img_show, img_result, ((img_show.shape[0] // 2), (img_show.shape[1] // 2)), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA))
+                    
+                    if not cv.waitKey(1) == -1:
                         break
                 # When everything done, release the capture
                 cam.release()
