@@ -1,5 +1,5 @@
 from packaging import version
-local_ver = "0.2.4"
+local_ver = "0.2.5"
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -35,8 +35,9 @@ local_ver = version.parse(local_ver)
 remote_ver: version
 
 try:
+    # get version number by getting second line of file on GitHub
     remote = requests.get("https://github.com/Trevrosa/ai-thing/raw/main/main.py").text.splitlines()[1]
-    remote = [x.strip() for x in remote.split("=")][-1].replace("\"", "")
+    remote = [x.strip() for x in remote.split("=")][-1].replace("\"", "")  # isolate version from line
 
     remote_ver = version.parse(remote)
 
@@ -115,7 +116,7 @@ def before_exit():
     print("\nok, wait..", end="")
 
     if old_model.exists() and latest_model.exists():
-        rmtree(old_model)
+        rmtree(old_model)  # remove files recursively
         latest_model.rename(old_model)
     elif latest_model.exists():
         latest_model.rename(old_model)
@@ -134,14 +135,14 @@ def before_exit():
 
 
 @contextlib.contextmanager
-def suppress_stdout():
+def suppress_stdout():  # suppress console output. usage: with suppress_stdout(): ...
     with open(os.devnull, "w") as devnull:
         sys.stdout = devnull
         sys.stderr = devnull
         try:
             yield
         finally:
-            sys.stdout = sys.__stdout__
+            sys.stdout = sys.__stdout__  # switch back to original stdout location
             sys.stderr = sys.__stderr__
 
 
@@ -166,18 +167,22 @@ if train or not exists(class_name_file):
                 fp = os.path.join(dirpath, f)
 
                 path = Path(fp)
+
+                # define path. eg. invalid_files/a/d.txt, invalid_files/a/d/d/d/a.pg, invalid_files/p.l, etc.
                 new_path = os.path.join("invalid_files", path.name if "dataset" in path.parent.name else
                                         os.path.join(str(path.parent).replace("dataset\\", ""), path.name))
 
                 if what(fp) is None:
+                    # make parents if they don't exist, ignore existing folders when creating folder
                     Path(new_path.replace(Path(new_path).name, "")).mkdir(exist_ok=True, parents=True)
                     move(fp, new_path)
 
                 print(f"\rcleaning dataset.. ({files}/{total})", end="")
-        print(f"\rcleaning dataset..done{' ' * (len(str(total)) + 6)}")
+        print(f"\rcleaning dataset..done{' ' * (len(str(total)) + 6)}")  # extra spaces to remove old text
 
     print("loading dataset..", end="")
 
+    # load dataset
     with suppress_stdout():
         train_ds = tf.keras.utils.image_dataset_from_directory(
             data_dir,
@@ -200,7 +205,7 @@ if train or not exists(class_name_file):
     class_names = train_ds.class_names
 
     print(f"found {len(class_names)} labels from dataset.\n")
-elif exists(class_name_file):
+elif exists(class_name_file):  # if predicting, get class names from file if file exists
     with open(class_name_file, "r") as classes:
         class_names = [x.strip() for x in classes.read().split(",")]
 
@@ -211,11 +216,12 @@ else:
 
 if train:
     normalization_layer = layers.Rescaling(1. / 255)
-    normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-    image_batch, labels_batch = next(iter(normalized_ds))
+    normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))  # normalise dataset with normalization_layer
+    image_batch, labels_batch = next(iter(normalized_ds))  # define batches
 
     num_classes = len(class_names)
 
+    # augment images (flip, rotate, zoom)
     data_augmentation = keras.Sequential(
         [
             layers.RandomFlip("horizontal",
@@ -227,6 +233,7 @@ if train:
         ]
     )
 
+    # define model
     model = Sequential([
         data_augmentation,
         layers.Rescaling(1. / 255),
@@ -250,6 +257,7 @@ if train:
             model = tf.keras.models.load_model(latest_model, compile=False)
             print("done\n")
 
+    # define optimizer, loss function, and metrics
     model.compile(optimizer='adam',
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
@@ -289,15 +297,19 @@ else:
 
     while running:
         try:
-            input_file = input("\ninput image path (or type cam to get webcam image): ")
+            input_file = input("\ninput image path (or enter cam for camera): ")
 
             if input_file.lower() == "cam":
                 cam = cv.VideoCapture()
-                cam.open(0)
+                cam.open(0)  # open first camera found
+
                 it = 0
+                img_result = "loading"
+
                 while True:
-                    # Capture frame-by-frame
+                    # get frame
                     ret, img = cam.read()
+
                     # if frame is read correctly ret is True
                     if not ret:
                         print("camera didnt take photo properly")
@@ -306,25 +318,24 @@ else:
                     it += 1
                     img_show = img
 
-                    img_result = ""
-
+                    # get prediction every 15 frames
                     if it % 15 == 0:
-                        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                        img = cv.resize(img, (img_width, img_height))
-                        img = Image.fromarray(img)
+                        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # tensorflow only works with rgb
+                        img = cv.resize(img, (img_width, img_height))  # resize image to dataset height and width
+                        # img = Image.fromarray(img)  # convert from np.ndarray to PIL.Image
 
-                        print("\n", end="")
-                        img_array = tf.keras.utils.img_to_array(img)
-                        img_array = tf.expand_dims(img_array, 0)
+                        # img_array = tf.keras.utils.img_to_array(img)
+                        img_array = img
+                        img_array = tf.expand_dims(img_array, 0)  # create a batch
 
-                        predictions = model.predict(img_array)
-                        score = tf.nn.softmax(predictions[0])
+                        with suppress_stdout():
+                            predictions = model.predict(img_array)  # predict what class the image is
+                        score = tf.nn.softmax(predictions[0])  # converts a list of numbers into probabilities
 
                         result = "This image most likely belongs to {} with a {:.2f}% confidence.".format(class_names[np.argmax(score)], 100 * np.max(score))
-                        img_result = f"{class_names[np.argmax(score)]}: {round(100 * np.max(score), 2)}% confidence"
+                        img_result = "{}: {:.2f}%".format(class_names[np.argmax(score)], 100 * np.max(score))
 
-                        print(result)
-
+                        # define path
                         taken_path = Path("taken", class_names[np.argmax(score)])
                         taken_path.mkdir(exist_ok=True, parents=True)
 
@@ -332,12 +343,32 @@ else:
                         taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
 
                         cv.imwrite(str(taken_file), img_show)
+
+                    # center vertically (offset +100) and center horizontally
+                    # use // instead of / since cv.putText only allows integers (no decimals)
+                    place = ((img_show.shape[0] // 2) - ((len(img_result) * 4) + (len(img_result) // 5)),  # x axis
+                             (img_show.shape[1] // 2) + 100)  # y axis
+                    color = (0, 0, 0)
+
+                    # use white text on dark backgrounds, and vice versa
+                    # choose by checking average brightness of image
+                    gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
+                    if np.round(np.average(gray.ravel()), 2) < 40:
+                        color = (255, 255, 255)
+
+                    # cv.putText(image, text, coordinates (cannot be float), font, font scale, color, thickness, line)
+                    img_show = cv.putText(img_show, img_result, place, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
+
+                    cv.imshow("taken image", img_show)
                     
-                    cv.imshow("taken image", cv.putText(img_show, img_result, ((img_show.shape[0] // 2), (img_show.shape[1] // 2)), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv.LINE_AA))
-                    
-                    if not cv.waitKey(1) == -1:
+                    if not cv.waitKey(1) == -1:  # exit on any key press
                         break
-                # When everything done, release the capture
+
+                    # also stop if window is closed manually
+                    if cv.getWindowProperty("taken image", cv.WND_PROP_VISIBLE) == 0:
+                        break
+
+                # release the camera and close the window after user exits
                 cam.release()
                 cv.destroyAllWindows()
             else:
@@ -346,17 +377,18 @@ else:
                 )
 
                 print("\n", end="")
-                img_array = tf.keras.utils.img_to_array(img)
-                img_array = tf.expand_dims(img_array, 0)  # Create a batch
+                img_array = tf.keras.utils.img_to_array(img)  # convert from PIL.Image to np.ndarray
+                img_array = tf.expand_dims(img_array, 0)  # create a batch
 
                 predictions = model.predict(img_array)
-                score = tf.nn.softmax(predictions[0])
+                score = tf.nn.softmax(predictions[0])  # converts a list of numbers into probabilities
 
                 print(
                     "This image most likely belongs to {} with a {:.2f}% confidence."
                     .format(class_names[np.argmax(score)], 100 * np.max(score))
+                    # ^ get label from the highest probability   ^ get the highest probability confidence
                 )
-        except (FileNotFoundError, OSError):
+        except (FileNotFoundError, OSError):  # dont exit if file doesn't exist
             print("\nfile not found")
             pass
         except KeyboardInterrupt:
