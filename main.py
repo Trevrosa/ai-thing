@@ -294,41 +294,51 @@ else:
             if input_file.lower() == "cam":
                 cam = cv.VideoCapture()
                 cam.open(0)
+                it = 0
+                while True:
+                    # Capture frame-by-frame
+                    ret, img = cam.read()
+                    # if frame is read correctly ret is True
+                    if not ret:
+                        print("camera didnt take photo properly")
+                        break
+                    
+                    it += 1
+                    img_show = img
 
-                cam.grab()
-                img = cam.retrieve()[1]
+                    if it % 15 == 0:
+                        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+                        img = cv.resize(img, (img_width, img_height))
+                        img = Image.fromarray(img)
+                        
+                        print("\n", end="")
+                        img_array = tf.keras.utils.img_to_array(img)
+                        img_array = tf.expand_dims(img_array, 0)
+
+                        predictions = model.predict(img_array)
+                        score = tf.nn.softmax(predictions[0])
+
+                        print(
+                            "This image most likely belongs to {} with a {:.2f}% confidence."
+                            .format(class_names[np.argmax(score)], 100 * np.max(score))
+                        )
+
+                        taken_path = Path("taken", class_names[np.argmax(score)])
+                        taken_path.mkdir(exist_ok=True, parents=True)
+
+                        old_files = files = [f for f in os.listdir(str(taken_path)) if Path(taken_path, f).is_file()]
+                        taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
+                        
+                        cv.imwrite(str(taken_file), img_show)
+                        
+
+                    cv.imshow("taken image", img_show)
+
+                    if cv.waitKey(1) == ord('q'):
+                        break
+                # When everything done, release the capture
                 cam.release()
-                
-                img_show = img
-
-                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                img = cv.resize(img, (img_width, img_height))
-                img = Image.fromarray(img)
-                
-                print("\n", end="")
-                img_array = tf.keras.utils.img_to_array(img)
-                img_array = tf.expand_dims(img_array, 0)
-
-                predictions = model.predict(img_array)
-                score = tf.nn.softmax(predictions[0])
-
-                print(
-                    "This image most likely belongs to {} with a {:.2f}% confidence."
-                    .format(class_names[np.argmax(score)], 100 * np.max(score))
-                )
-
-                taken_path = Path("taken", class_names[np.argmax(score)])
-                taken_path.mkdir(exist_ok=True, parents=True)
-
-                old_files = files = [f for f in os.listdir(str(taken_path)) if Path(taken_path, f).is_file()]
-
-                taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
-                
-                cv.imwrite(str(taken_file), img_show)
-                cv.imshow("taken image", img_show)
-                
-                cv.waitKey(0)
-                cv.destroyAllWindows() 
+                cv.destroyAllWindows()
             else:
                 img = tf.keras.utils.load_img(
                     input_file, target_size=(img_height, img_width)
