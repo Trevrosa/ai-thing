@@ -12,7 +12,7 @@ import logging
 import json
 import requests
 
-from pathlib import Paths
+from pathlib import Path
 from os import remove
 from os.path import exists
 from shutil import rmtree, make_archive, move
