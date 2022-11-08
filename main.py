@@ -186,7 +186,7 @@ if train or not exists(class_name_file):
             seed=123,
             image_size=(img_height, img_width),
             batch_size=batch_size)
-    print(f"\rloading dataset.. (1/2)", end="")
+    print("\rloading dataset.. (1/2)", end="")
     with suppress_stdout():
         val_ds = tf.keras.utils.image_dataset_from_directory(
             data_dir,
@@ -302,7 +302,7 @@ else:
                     if not ret:
                         print("camera didnt take photo properly")
                         break
-                    
+
                     it += 1
                     img_show = img
 
@@ -310,7 +310,7 @@ else:
                         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
                         img = cv.resize(img, (img_width, img_height))
                         img = Image.fromarray(img)
-                        
+
                         print("\n", end="")
                         img_array = tf.keras.utils.img_to_array(img)
                         img_array = tf.expand_dims(img_array, 0)
@@ -328,9 +328,8 @@ else:
 
                         old_files = files = [f for f in os.listdir(str(taken_path)) if Path(taken_path, f).is_file()]
                         taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
-                        
+
                         cv.imwrite(str(taken_file), img_show)
-                        
 
                     cv.imshow("taken image", img_show)
 
