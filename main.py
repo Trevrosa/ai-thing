@@ -12,8 +12,7 @@ import logging
 import json
 import requests
 
-from pathlib import Path
-from PIL import Image
+from pathlib import Paths
 from os import remove
 from os.path import exists
 from shutil import rmtree, make_archive, move
@@ -322,9 +321,7 @@ else:
                     if it % 15 == 0:
                         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # tensorflow only works with rgb
                         img = cv.resize(img, (img_width, img_height))  # resize image to dataset height and width
-                        # img = Image.fromarray(img)  # convert from np.ndarray to PIL.Image
 
-                        # img_array = tf.keras.utils.img_to_array(img)
                         img_array = img
                         img_array = tf.expand_dims(img_array, 0)  # create a batch
 
@@ -332,7 +329,8 @@ else:
                             predictions = model.predict(img_array)  # predict what class the image is
                         score = tf.nn.softmax(predictions[0])  # converts a list of numbers into probabilities
 
-                        result = "This image most likely belongs to {} with a {:.2f}% confidence.".format(class_names[np.argmax(score)], 100 * np.max(score))
+                        result = "This image most likely belongs to {} with a {:.2f}% confidence."\
+                            .format(class_names[np.argmax(score)], 100 * np.max(score))
                         img_result = "{}: {:.2f}%".format(class_names[np.argmax(score)], 100 * np.max(score))
 
                         # define path
