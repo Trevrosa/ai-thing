@@ -358,7 +358,7 @@ else:
                     img_show = cv.putText(img_show, img_result, place, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
 
                     cv.imshow("taken image", img_show)
-                    
+
                     if not cv.waitKey(1) == -1:  # exit on any key press
                         break
 
