@@ -303,7 +303,7 @@ else:
                 cam.open(0)  # open first camera found
 
                 it = 0
-                img_result = "loading"
+                img_result = "loading.."
 
                 while True:
                     # get frame
