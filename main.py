@@ -326,7 +326,7 @@ else:
                     # use white text on dark backgrounds, and vice versa
                     # choose by checking average brightness of the bottom of the image
                     gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
-                    
+
                     # slice the image to get the bottom of the image
                     gray = gray[(img_show.shape[0] // 2) + 100:(img_show.shape[1])]
 
