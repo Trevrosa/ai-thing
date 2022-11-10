@@ -303,7 +303,7 @@ else:
                 cam.open(0)  # open first camera found
 
                 it = 0
-                img_result = "loading.."
+                img_result = "Loading.."
 
                 while True:
                     # get frame
@@ -317,8 +317,9 @@ else:
                     it += 1
                     img_show = img
 
+                    # use // instead of / since opencv only allows integers (// is divide and round down)
+
                     # center vertically (offset +100) and center horizontally
-                    # use // instead of / since cv.putText only allows integers (no decimals)
                     place = ((img_show.shape[0] // 2) - ((len(img_result) * 4) + (len(img_result) // 5)),  # x axis
                              (img_show.shape[1] // 2) + 100)  # y axis
                     color = (0, 0, 0)
@@ -328,12 +329,18 @@ else:
                     gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
 
                     # slice the image to get the bottom of the image
-                    gray = gray[(img_show.shape[0] // 2) + 100:(img_show.shape[1])]
 
-                    brightness = 0
+                    # slicing nd array:
+                    #          [a:b, c:d, e:f]
+                    #           ^    ^    ^
+                    #           1d   2d   3d
+                    #           (x)  (y)  (..)
+
+                    gray = gray[(img_show.shape[0] // 2) - 30:(img_show.shape[0] // 2) + 100]
 
                     with suppress_stdout():
-                        brightness = np.round(np.average(gray.ravel()), 2)  # get a 1d array from selected part of image
+                        # get a 1d array from selected part of image with .ravel()
+                        brightness = np.round(np.average(gray.ravel()), 2)
 
                     if brightness < 70:
                         color = (255, 255, 255)
