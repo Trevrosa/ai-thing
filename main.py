@@ -317,13 +317,31 @@ else:
                     it += 1
                     img_show = img
 
+                    # center vertically (offset +100) and center horizontally
+                    # use // instead of / since cv.putText only allows integers (no decimals)
+                    place = ((img_show.shape[0] // 2) - ((len(img_result) * 4) + (len(img_result) // 5)),  # x axis
+                             (img_show.shape[1] // 2) + 100)  # y axis
+                    color = (0, 0, 0)
+
+                    # use white text on dark backgrounds, and vice versa
+                    # choose by checking average brightness of the bottom of the image
+                    gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
+                    gray = gray[(img_show.shape[0] // 2) + 100:(img_show.shape[1])]  # slice the image to get the bottom of the image
+
+                    brightness = 0
+
+                    with suppress_stdout():
+                        brightness = np.round(np.average(gray.ravel()), 2)  # get a 1d array from selected part of image
+                    
+                    if brightness < 70:
+                        color = (255, 255, 255)
+
                     # get prediction every 15 frames
                     if it % 15 == 0:
                         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # tensorflow only works with rgb
                         img = cv.resize(img, (img_width, img_height))  # resize image to dataset height and width
 
-                        img_array = img
-                        img_array = tf.expand_dims(img_array, 0)  # create a batch
+                        img_array = tf.expand_dims(img, 0)  # create a batch
 
                         with suppress_stdout():
                             predictions = model.predict(img_array)  # predict what class the image is
@@ -342,21 +360,10 @@ else:
 
                         cv.imwrite(str(taken_file), img_show)
 
-                    # center vertically (offset +100) and center horizontally
-                    # use // instead of / since cv.putText only allows integers (no decimals)
-                    place = ((img_show.shape[0] // 2) - ((len(img_result) * 4) + (len(img_result) // 5)),  # x axis
-                             (img_show.shape[1] // 2) + 100)  # y axis
-                    color = (0, 0, 0)
-
-                    # use white text on dark backgrounds, and vice versa
-                    # choose by checking average brightness of image
-                    gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
-                    if np.round(np.average(gray.ravel()), 2) < 40:
-                        color = (255, 255, 255)
-
                     # cv.putText(image, text, coordinates (cannot be float), font, font scale, color, thickness, line)
                     img_show = cv.putText(img_show, img_result, place, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
 
+                    cv.imshow("bedug", gray)
                     cv.imshow("taken image", img_show)
 
                     if not cv.waitKey(1) == -1:  # exit on any key press
