@@ -326,13 +326,15 @@ else:
                     # use white text on dark backgrounds, and vice versa
                     # choose by checking average brightness of the bottom of the image
                     gray: np.ndarray = cv.cvtColor(img_show, cv.COLOR_BGR2GRAY)
-                    gray = gray[(img_show.shape[0] // 2) + 100:(img_show.shape[1])]  # slice the image to get the bottom of the image
+                    
+                    # slice the image to get the bottom of the image
+                    gray = gray[(img_show.shape[0] // 2) + 100:(img_show.shape[1])]
 
                     brightness = 0
 
                     with suppress_stdout():
                         brightness = np.round(np.average(gray.ravel()), 2)  # get a 1d array from selected part of image
-                    
+
                     if brightness < 70:
                         color = (255, 255, 255)
 
