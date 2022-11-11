@@ -299,7 +299,7 @@ else:
             input_file = input("\ninput image path (or enter cam for camera): ")
 
             if input_file.lower() == "cam":
-                cam = cv.VideoCapture(0) # open first camera found
+                cam = cv.VideoCapture(0)  # open first camera found
 
                 it = 0
                 img_result = "Loading.."
@@ -341,7 +341,8 @@ else:
                     offset = 30  # applied to both
 
                     # check if image is too small
-                    if not ((img_show.shape[0] // 2 + start_offset > img_show.shape[0]) or (img_show.shape[0] + end_offset < 0)):
+                    if not ((img_show.shape[0] // 2 + start_offset > img_show.shape[0]) or 
+                            (img_show.shape[0] + end_offset < 0)):
                         gray = gray[(img_show.shape[0] // 2) + start_offset:img_show.shape[0] + end_offset,
                                     (offset * 2):(gray.shape[1] + offset)]  # slice again to get middle of the image
 
