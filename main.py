@@ -299,15 +299,15 @@ else:
             input_file = input("\ninput image path (or enter cam for camera): ")
 
             if input_file.lower() == "cam":
-                cam = cv.VideoCapture()
-                cam.open(0)  # open first camera found
+                cam = cv.VideoCapture(0) # open first camera found
 
                 it = 0
                 img_result = "Loading.."
 
                 while True:
                     # get frame
-                    ret, img = cam.read()
+                    with suppress_stdout():
+                        ret, img = cam.read()
 
                     # if frame is read correctly ret is True
                     if not ret:
@@ -330,19 +330,26 @@ else:
 
                     # slice the image to get the bottom of the image
 
-                    # slicing nd array:
-                    #          [a:b, c:d, e:f]
-                    #           ^    ^    ^
-                    #           1d   2d   3d
-                    #           (x)  (y)  (..)
+                    # slicing nd array (n-dimensional array):
+                    #          [a:b, c:d, e:f, g:h]
+                    #           ^    ^    ^    ^
+                    #           1d   2d   3d   4d
+                    #           (y)  (x)  (z) (..)
 
-                    gray = gray[(img_show.shape[0] // 2) - 30:(img_show.shape[0] // 2) + 100]
+                    start_offset = 130  # goes (down) as you increase value
+                    end_offset = -50  # goes (up) as you decrease value
+                    offset = 30  # applied to both
+
+                    # check if image is too small
+                    if not ((img_show.shape[0] // 2 + start_offset > img_show.shape[0]) or (img_show.shape[0] + end_offset < 0)):
+                        gray = gray[(img_show.shape[0] // 2) + start_offset:img_show.shape[0] + end_offset,
+                                    (offset * 2):(gray.shape[1] + offset)]  # slice again to get middle of the image
 
                     with suppress_stdout():
                         # get a 1d array from selected part of image with .ravel()
                         brightness = np.round(np.average(gray.ravel()), 2)
 
-                    if brightness < 70:
+                    if brightness < 120:
                         color = (255, 255, 255)
 
                     # get prediction every 15 frames
@@ -372,7 +379,6 @@ else:
                     # cv.putText(image, text, coordinates (cannot be float), font, font scale, color, thickness, line)
                     img_show = cv.putText(img_show, img_result, place, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
 
-                    cv.imshow("bedug", gray)
                     cv.imshow("taken image", img_show)
 
                     if not cv.waitKey(1) == -1:  # exit on any key press
