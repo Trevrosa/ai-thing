@@ -1,5 +1,5 @@
 from packaging import version
-local_ver = "0.2.5.2"
+local_ver = "0.2.5.3"
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -11,6 +11,7 @@ import contextlib
 import logging
 import json
 import requests
+import threading
 
 from pathlib import Path
 from os import remove
@@ -18,7 +19,12 @@ from os.path import exists
 from shutil import rmtree, make_archive, move
 from imghdr import what
 from random import uniform
-from playsound import playsound
+
+sound_available = True
+try:
+    import winsound
+except ImportError:
+    sound_available = False
 
 import tensorflow as tf
 from tensorflow import keras
@@ -295,6 +301,16 @@ else:
 
     running = True
 
+    if not sound_available:
+        print("\nsound not available")
+    else:
+        playing = False
+
+    
+    def toggle_playing():
+        global playing
+        playing = not playing
+
     while running:
         try:
             input_file = input("\ninput image path (or enter cam for camera): ")
@@ -377,9 +393,18 @@ else:
                         taken_file = Path(taken_path, f"{len(old_files) + 1}.jpg")
 
                         cv.imwrite(str(taken_file), img_show)
-
+                    
+                    if it % 30 == 0 and sound_available and not playing:
                         if sys.argv[1] == "sound":
-                            playsound(f"sounds/class{np.argmax(score)}.wav")
+                            if not Path(f"sounds/class{len(class_names)}.wav").exists:
+                                print(f"sound not found for class {len(class_names)}\n")
+                            else:
+                                # play sound asynchronously
+                                winsound.PlaySound(f"sounds/class{np.argmax(score)}.wav", winsound.SND_ASYNC)
+
+                                toggle_playing()
+                                timer = threading.Timer(1., toggle_playing)  # after 2 seconds, toggle playing var
+                                timer.start()
 
                     # cv.putText(image, text, coordinates (cannot be float), font, font scale, color, thickness, line)
                     img_show = cv.putText(img_show, img_result, place, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
